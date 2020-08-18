@@ -2,7 +2,7 @@ package alicloud
 
 import (
 	"encoding/json"
-	"strings"
+	"reflect"
 	"time"
 
 	"github.com/aliyun/fc-go-sdk"
@@ -181,29 +181,18 @@ func (s *FcService) DescribeFcAlias(id string) (*fc.GetAliasOutput, error) {
 	return response, err
 }
 
-func removeSpaceAndEnter(s string) string {
-	if Trim(s) == "" {
-		return Trim(s)
-	}
-	return strings.Replace(strings.Replace(strings.Replace(s, " ", "", -1), "\n", "", -1), "\t", "", -1)
-}
-
-func delEmptyPayloadIfExist(s string) (string, error) {
-	if s == "" {
-		return s, nil
-	}
-	in := []byte(s)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(in, &raw); err != nil {
-		return s, err
+func jsonBytesEqual(b1, b2 []byte) bool {
+	var o1 interface{}
+	if err := json.Unmarshal(b1, &o1); err != nil {
+		return false
 	}
 
-	if _, ok := raw["payload"]; ok {
-		delete(raw, "payload")
+	var o2 interface{}
+	if err := json.Unmarshal(b2, &o2); err != nil {
+		return false
 	}
 
-	out, err := json.Marshal(raw)
-	return string(out), err
+	return reflect.DeepEqual(o1, o2)
 }
 
 func (s *FcService) WaitForFcTrigger(id string, status Status, timeout int) error {

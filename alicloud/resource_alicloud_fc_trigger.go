@@ -71,19 +71,8 @@ func resourceAlicloudFCTrigger() *schema.Resource {
 					if d.Get("type").(string) == string(fc.TRIGGER_TYPE_MNS_TOPIC) {
 						return true
 					}
-					if d.Get("type").(string) == string(fc.TRIGGER_TYPE_TIMER) {
-						resolvedNew, err := delEmptyPayloadIfExist(removeSpaceAndEnter(new))
-						if err != nil {
-							panic(err)
-						}
-						resolvedOld, err := delEmptyPayloadIfExist(removeSpaceAndEnter(old))
-						if err != nil {
-							panic(err)
-						}
-
-						return resolvedOld == resolvedNew
-					}
-					return removeSpaceAndEnter(old) == removeSpaceAndEnter(new)
+					// remove white space is not enouth, so using jsonBytesEqual
+					return jsonBytesEqual([]byte(old), []byte(new))
 				},
 				ValidateFunc: validation.ValidateJsonString,
 			},
@@ -94,7 +83,8 @@ func resourceAlicloudFCTrigger() *schema.Resource {
 				ForceNew: true,
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					// The read config is json rawMessage and it does not contains space and enter.
-					return old == removeSpaceAndEnter(new)
+					// remove white space is not enouth, so using jsonBytesEqual
+					return jsonBytesEqual([]byte(old), []byte(new))
 				},
 				ValidateFunc:  validation.ValidateJsonString,
 				ConflictsWith: []string{"config"},
@@ -245,13 +235,16 @@ func resourceAlicloudFCTriggerRead(d *schema.ResourceData, meta interface{}) err
 func resourceAlicloudFCTriggerUpdate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*connectivity.AliyunClient)
 
+	updated := false
 	updateInput := &fc.UpdateTriggerInput{}
 
 	if d.HasChange("role") {
 		updateInput.InvocationRole = StringPointer(d.Get("role").(string))
+		updated = true
 	}
 	if d.HasChange("qualifier") {
 		updateInput.Qualifier = StringPointer(d.Get("qualifier").(string))
+		updated = true
 	}
 	if d.HasChange("config") {
 		var config interface{}
@@ -259,9 +252,10 @@ func resourceAlicloudFCTriggerUpdate(d *schema.ResourceData, meta interface{}) e
 			return WrapError(err)
 		}
 		updateInput.TriggerConfig = config
+		updated = true
 	}
 
-	if updateInput != nil {
+	if updated {
 		parts, err := ParseResourceId(d.Id(), 3)
 		if err != nil {
 			return WrapError(err)
