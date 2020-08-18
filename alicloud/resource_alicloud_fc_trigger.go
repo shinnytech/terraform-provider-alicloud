@@ -80,40 +80,8 @@ func resourceAlicloudFCTrigger() *schema.Resource {
 					if d.Get("type").(string) == string(fc.TRIGGER_TYPE_MNS_TOPIC) {
 						return true
 					}
-					if d.Get("type").(string) == string(fc.TRIGGER_TYPE_TIMER) {
-						resolvedNew, err := delEmptyPayloadIfExist(removeSpaceAndEnter(new))
-						if err != nil {
-							panic(err)
-						}
-						resolvedOld, err := delEmptyPayloadIfExist(removeSpaceAndEnter(old))
-						if err != nil {
-							panic(err)
-						}
-
-						return resolvedOld == resolvedNew
-					}
-
-					if d.Get("type").(string) == string(fc.TRIGGER_TYPE_EVENTBRIDGE) {
-						resolvedNew, err := delNilEventSourceParams(removeSpaceAndEnter(new))
-						if err != nil {
-							panic(err)
-						}
-						resolvedOld, err := delNilEventSourceParams(removeSpaceAndEnter(old))
-						if err != nil {
-							panic(err)
-						}
-
-						return resolvedOld == resolvedNew
-					}
-					resolvedNew, err := resolveFcTriggerConfig(removeSpaceAndEnter(new))
-					if err != nil {
-						panic(err)
-					}
-					resolvedOld, err := resolveFcTriggerConfig(removeSpaceAndEnter(old))
-					if err != nil {
-						panic(err)
-					}
-					return resolvedNew == resolvedOld
+					// remove white space is not enouth, so using jsonBytesEqual
+					return jsonBytesEqual([]byte(old), []byte(new))
 				},
 				ValidateFunc: validation.ValidateJsonString,
 			},
@@ -124,7 +92,8 @@ func resourceAlicloudFCTrigger() *schema.Resource {
 				ForceNew: true,
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					// The read config is json rawMessage and it does not contains space and enter.
-					return old == removeSpaceAndEnter(new)
+					// remove white space is not enouth, so using jsonBytesEqual
+					return jsonBytesEqual([]byte(old), []byte(new))
 				},
 				ValidateFunc:  validation.ValidateJsonString,
 				ConflictsWith: []string{"config"},
@@ -279,13 +248,16 @@ func resourceAlicloudFCTriggerUpdate(d *schema.ResourceData, meta interface{}) e
 		return WrapError(err)
 	}
 
+	updated := false
 	updateInput := fc.NewUpdateTriggerInput(parts[0], parts[1], parts[2])
 	updateInput.WithHeader(HeaderEnableEBTrigger, "enable")
 	if d.HasChange("role") {
 		updateInput.InvocationRole = StringPointer(d.Get("role").(string))
+		updated = true
 	}
 	if d.HasChange("qualifier") {
 		updateInput.Qualifier = StringPointer(d.Get("qualifier").(string))
+		updated = true
 	}
 	if d.HasChange("config") {
 		var config interface{}
@@ -293,9 +265,10 @@ func resourceAlicloudFCTriggerUpdate(d *schema.ResourceData, meta interface{}) e
 			return WrapError(err)
 		}
 		updateInput.TriggerConfig = config
+		updated = true
 	}
 
-	if updateInput != nil {
+	if updated {
 		var requestInfo *fc.Client
 		raw, err := client.WithFcClient(func(fcClient *fc.Client) (interface{}, error) {
 			requestInfo = fcClient

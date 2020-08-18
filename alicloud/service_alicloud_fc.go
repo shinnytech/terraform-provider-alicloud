@@ -2,7 +2,7 @@ package alicloud
 
 import (
 	"encoding/json"
-	"strings"
+	"reflect"
 	"time"
 
 	"github.com/aliyun/fc-go-sdk"
@@ -182,94 +182,18 @@ func (s *FcService) DescribeFcAlias(id string) (*fc.GetAliasOutput, error) {
 	return response, err
 }
 
-func removeSpaceAndEnter(s string) string {
-	if Trim(s) == "" {
-		return Trim(s)
-	}
-	return strings.Replace(strings.Replace(strings.Replace(s, " ", "", -1), "\n", "", -1), "\t", "", -1)
-}
-
-func delEmptyPayloadIfExist(s string) (string, error) {
-	if s == "" {
-		return s, nil
-	}
-	in := []byte(s)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(in, &raw); err != nil {
-		return s, err
+func jsonBytesEqual(b1, b2 []byte) bool {
+	var o1 interface{}
+	if err := json.Unmarshal(b1, &o1); err != nil {
+		return false
 	}
 
-	if v, ok := raw["payload"]; ok {
-		if vStr, ok := v.(string); ok && vStr == "" {
-			delete(raw, "payload")
-		}
+	var o2 interface{}
+	if err := json.Unmarshal(b2, &o2); err != nil {
+		return false
 	}
 
-	out, err := json.Marshal(raw)
-	return string(out), err
-}
-
-func resolveFcTriggerConfig(s string) (string, error) {
-	if s == "" {
-		return s, nil
-	}
-	in := []byte(s)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(in, &raw); err != nil {
-		return s, err
-	}
-
-	out, err := json.Marshal(raw)
-	return string(out), err
-}
-
-func delNilEventSourceParams(s string) (string, error) {
-	if s == "" {
-		return s, nil
-	}
-	in := []byte(s)
-	var raw map[string]interface{}
-	if err := json.Unmarshal(in, &raw); err != nil {
-		return s, err
-	}
-	if v, ok := raw["eventSourceConfig"]; ok {
-		if eventSourceConfig, ok := v.(map[string]interface{}); ok {
-			if v1, ok := eventSourceConfig["eventSourceParameters"]; ok {
-				if eventSourceParams, ok := v1.(map[string]interface{}); ok {
-					if vMNS, ok := eventSourceParams["sourceMNSParameters"]; ok {
-						if _, ok := vMNS.(map[string]interface{}); ok {
-
-						} else if vMNS == nil {
-							// sourceMNSParameters is nil
-							delete(eventSourceParams, "sourceMNSParameters")
-						}
-
-					}
-					if vRocketMQ, ok := eventSourceParams["sourceRocketMQParameters"]; ok {
-						if _, ok := vRocketMQ.(map[string]interface{}); ok {
-
-						} else if vRocketMQ == nil {
-							// sourceRocketMQParameters is nil
-							delete(eventSourceParams, "sourceRocketMQParameters")
-						}
-					}
-					if vRabbitMQ, ok := eventSourceParams["sourceRabbitMQParameters"]; ok {
-						if _, ok := vRabbitMQ.(map[string]interface{}); ok {
-
-						} else if vRabbitMQ == nil {
-							// sourceRabbitMQParameters is nil
-							delete(eventSourceParams, "sourceRabbitMQParameters")
-						}
-					}
-				} else if v1 == nil {
-					// eventSourceParams is nil
-					delete(eventSourceConfig, "eventSourceParameters")
-				}
-			}
-		}
-	}
-	out, err := json.Marshal(raw)
-	return string(out), err
+	return reflect.DeepEqual(o1, o2)
 }
 
 func (s *FcService) WaitForFcTrigger(id string, status Status, timeout int) error {
