@@ -124,8 +124,10 @@ type IndexLine struct {
 
 // Index is an index config for a log store.
 type Index struct {
-	Keys map[string]IndexKey `json:"keys,omitempty"`
-	Line *IndexLine          `json:"line,omitempty"`
+	Keys       map[string]IndexKey `json:"keys,omitempty"`
+	Line       *IndexLine          `json:"line,omitempty"`
+	LogReduce  *bool               `json:"log_reduce,omitempty"`
+	MaxTextLen *int64              `json:"max_text_len,omitempty"`
 }
 
 // CreateDefaultIndex return a full text index config
