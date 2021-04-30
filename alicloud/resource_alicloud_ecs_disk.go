@@ -112,6 +112,7 @@ func resourceAlicloudEcsDisk() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
+				ForceNew: true,
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					return d.Get("category").(string) != "cloud_essd"
 				},
