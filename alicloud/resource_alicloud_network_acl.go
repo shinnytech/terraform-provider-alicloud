@@ -217,6 +217,9 @@ func resourceAlicloudNetworkAclRead(d *schema.ResourceData, meta interface{}) er
 	if egressAclEntryList, ok := object["EgressAclEntries"].(map[string]interface{})["EgressAclEntry"].([]interface{}); ok {
 		for _, v := range egressAclEntryList {
 			if m1, ok := v.(map[string]interface{}); ok {
+				if m1["EntryType"] != "custom" {
+					continue
+				}
 				temp1 := map[string]interface{}{
 					"description":            m1["Description"],
 					"destination_cidr_ip":    m1["DestinationCidrIp"],
@@ -238,6 +241,9 @@ func resourceAlicloudNetworkAclRead(d *schema.ResourceData, meta interface{}) er
 	if ingressAclEntryList, ok := object["IngressAclEntries"].(map[string]interface{})["IngressAclEntry"].([]interface{}); ok {
 		for _, v := range ingressAclEntryList {
 			if m1, ok := v.(map[string]interface{}); ok {
+				if m1["EntryType"] != "custom" {
+					continue
+				}
 				temp1 := map[string]interface{}{
 					"description":            m1["Description"],
 					"network_acl_entry_name": m1["NetworkAclEntryName"],
