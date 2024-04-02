@@ -132,8 +132,9 @@ func resourceAlicloudNatGateway() *schema.Resource {
 				Removed:  "Field 'spec' has been removed from provider version 1.121.0, replace by 'specification'.",
 			},
 			"snat_table_ids": {
-				Type:     schema.TypeString,
+				Type:     schema.TypeList,
 				Computed: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"specification": {
 				Type:         schema.TypeString,
@@ -302,13 +303,7 @@ func resourceAlicloudNatGatewayRead(d *schema.ResourceData, meta interface{}) er
 	//	}
 	//	d.Set("period", period)
 	//}
-	if v, ok := object["SnatTableIds"].(map[string]interface{})["SnatTableId"].([]interface{}); ok {
-		ids := []string{}
-		for _, id := range v {
-			ids = append(ids, id.(string))
-		}
-		d.Set("snat_table_ids", strings.Join(ids, ","))
-	}
+	d.Set("snat_table_ids", object["SnatTableIds"].(map[string]interface{})["SnatTableId"])
 	d.Set("specification", object["Spec"])
 	d.Set("status", object["Status"])
 	d.Set("vswitch_id", object["NatGatewayPrivateInfo"].(map[string]interface{})["VswitchId"])
