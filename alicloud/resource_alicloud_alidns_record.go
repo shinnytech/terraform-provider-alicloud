@@ -215,10 +215,21 @@ func resourceAlicloudAlidnsRecordUpdate(d *schema.ResourceData, meta interface{}
 	updateDomainRecordRemarkReq.Remark = d.Get("remark").(string)
 	updateDomainRecordRemarkReq.UserClientIp = d.Get("user_client_ip").(string)
 	if update {
-		raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
-			return alidnsClient.UpdateDomainRecordRemark(updateDomainRecordRemarkReq)
+		wait := incrementalWait(3*time.Second, 3*time.Second)
+		err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutUpdate)), func() *resource.RetryError {
+			raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
+				return alidnsClient.UpdateDomainRecordRemark(updateDomainRecordRemarkReq)
+			})
+			if err != nil {
+				if IsExpectedErrors(err, []string{"LastOperationNotFinished"}) || NeedRetry(err) {
+					wait()
+					return resource.RetryableError(err)
+				}
+				return resource.NonRetryableError(err)
+			}
+			addDebug(updateDomainRecordRemarkReq.GetActionName(), raw)
+			return nil
 		})
-		addDebug(updateDomainRecordRemarkReq.GetActionName(), raw)
 		if err != nil {
 			return WrapErrorf(err, DefaultErrorMsg, d.Id(), updateDomainRecordRemarkReq.GetActionName(), AlibabaCloudSdkGoERROR)
 		}
@@ -257,10 +268,21 @@ func resourceAlicloudAlidnsRecordUpdate(d *schema.ResourceData, meta interface{}
 	updateDomainRecordReq.TTL = requests.NewInteger(d.Get("ttl").(int))
 	updateDomainRecordReq.UserClientIp = d.Get("user_client_ip").(string)
 	if update {
-		raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
-			return alidnsClient.UpdateDomainRecord(updateDomainRecordReq)
+		wait := incrementalWait(3*time.Second, 3*time.Second)
+		err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutUpdate)), func() *resource.RetryError {
+			raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
+				return alidnsClient.UpdateDomainRecord(updateDomainRecordReq)
+			})
+			if err != nil {
+				if IsExpectedErrors(err, []string{"LastOperationNotFinished"}) || NeedRetry(err) {
+					wait()
+					return resource.RetryableError(err)
+				}
+				return resource.NonRetryableError(err)
+			}
+			addDebug(updateDomainRecordReq.GetActionName(), raw)
+			return nil
 		})
-		addDebug(updateDomainRecordReq.GetActionName(), raw)
 		if err != nil {
 			return WrapErrorf(err, DefaultErrorMsg, d.Id(), updateDomainRecordReq.GetActionName(), AlibabaCloudSdkGoERROR)
 		}
