@@ -553,6 +553,75 @@ func GetCharTitile(project, dashboard, char string, client *sls.Client) string {
 	return char
 }
 
+func (s *LogService) DescribeSavedSearch(id string) (*sls.SavedSearch, error) {
+	var savedSearch *sls.SavedSearch
+	parts, err := ParseResourceId(id, 2)
+	if err != nil {
+		return savedSearch, WrapError(err)
+	}
+	projectName, savedSearchName := parts[0], parts[1]
+	var requestInfo *sls.Client
+	err = resource.Retry(2*time.Minute, func() *resource.RetryError {
+		raw, err := s.client.WithLogClient(func(slsClient *sls.Client) (interface{}, error) {
+			requestInfo = slsClient
+			return slsClient.GetSavedSearch(projectName, savedSearchName)
+		})
+		if err != nil {
+			if IsExpectedErrors(err, []string{"InternalServerError", LogClientTimeout}) {
+				return resource.RetryableError(err)
+			}
+			return resource.NonRetryableError(err)
+		}
+		if debugOn() {
+			addDebug("GetSavedSearch", raw, requestInfo, map[string]string{
+				"project":           projectName,
+				"saved_search_name": savedSearchName,
+			})
+		}
+		savedSearch = raw.(*sls.SavedSearch)
+		return nil
+	})
+
+	if err != nil {
+		if IsExpectedErrors(err, []string{"ProjectNotExist", "SavedSearchNotExist"}) {
+			return savedSearch, WrapErrorf(err, NotFoundMsg, AliyunLogGoSdkERROR)
+		}
+		return savedSearch, WrapErrorf(err, DefaultErrorMsg, id, "GetLogstoreDashboard", AliyunLogGoSdkERROR)
+	}
+
+	if savedSearch.SavedSearchName == "" {
+		return savedSearch, WrapErrorf(Error(GetNotFoundMessage("LogstoreSavedSearch", id)), NotFoundMsg, ProviderERROR)
+	}
+	return savedSearch, nil
+}
+
+func (s *LogService) WaitForSavedSearch(id string, status Status, timeout int) error {
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	parts, err := ParseResourceId(id, 2)
+	if err != nil {
+		return WrapError(err)
+	}
+	name := parts[1]
+	for {
+		savedSearch, err := s.DescribeSavedSearch(id)
+		if err != nil {
+			if NotFoundError(err) {
+				if status == Deleted {
+					return nil
+				}
+			} else {
+				return WrapError(err)
+			}
+		}
+		if savedSearch.SavedSearchName != "" && status != Deleted {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return WrapErrorf(err, WaitTimeoutMsg, id, GetFunc(1), timeout, savedSearch, name, ProviderERROR)
+		}
+	}
+}
+
 func (s *LogService) DescribeLogDashboard(id string) (string, error) {
 	dashboard := ""
 	parts, err := ParseResourceId(id, 2)
