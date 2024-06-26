@@ -553,6 +553,63 @@ func GetCharTitile(project, dashboard, char string, client *sls.Client) string {
 	return char
 }
 
+func (s *LogService) DescribeSavedSearch(project string, name string) (*sls.SavedSearch, error) {
+	var savedSearch *sls.SavedSearch
+	var requestInfo *sls.Client
+	err := resource.Retry(2*time.Minute, func() *resource.RetryError {
+		raw, err := s.client.WithLogClient(func(slsClient *sls.Client) (interface{}, error) {
+			requestInfo = slsClient
+			return slsClient.GetSavedSearch(project, name)
+		})
+		if err != nil {
+			if IsExpectedErrors(err, []string{"InternalServerError", LogClientTimeout}) {
+				return resource.RetryableError(err)
+			}
+			return resource.NonRetryableError(err)
+		}
+		if debugOn() {
+			addDebug("GetSavedSearch", raw, requestInfo, map[string]string{
+				"project":           project,
+				"saved_search_name": name,
+			})
+		}
+		savedSearch = raw.(*sls.SavedSearch)
+		return nil
+	})
+
+	if err != nil {
+		if IsExpectedErrors(err, []string{"ProjectNotExist", "SavedSearchNotExist"}) {
+			return savedSearch, WrapErrorf(err, NotFoundMsg, AliyunLogGoSdkERROR)
+		}
+		return savedSearch, WrapErrorf(err, DefaultErrorMsg, fmt.Sprintf("Project: %s, Name: %s", project, name), "GetLogstoreSavedSearch", AliyunLogGoSdkERROR)
+	}
+
+	if savedSearch.SavedSearchName == "" {
+		return savedSearch, WrapErrorf(Error(GetNotFoundMessage("LogstoreSavedSearch", fmt.Sprintf("Project: %s, Name: %s", project, name))), NotFoundMsg, ProviderERROR)
+	}
+	return savedSearch, nil
+}
+
+func (s *LogService) WaitForSavedSearch(project string, name string, status Status, timeout int) error {
+	deadline := time.Now().Add(time.Duration(timeout) * time.Second)
+	for {
+		savedSearch, err := s.DescribeSavedSearch(project, name)
+		if err != nil {
+			if NotFoundError(err) && status == Deleted {
+				return nil
+			} else {
+				return WrapError(err)
+			}
+		}
+		if savedSearch.SavedSearchName != "" && status != Deleted {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return WrapErrorf(err, WaitTimeoutMsg, fmt.Sprintf("Project: %s, Name: %s", project, name), GetFunc(1), timeout, savedSearch, name, ProviderERROR)
+		}
+	}
+}
+
 func (s *LogService) DescribeLogDashboard(id string) (string, error) {
 	dashboard := ""
 	parts, err := ParseResourceId(id, 2)
