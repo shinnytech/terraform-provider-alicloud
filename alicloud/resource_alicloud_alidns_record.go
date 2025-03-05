@@ -3,6 +3,7 @@ package alicloud
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -114,14 +115,15 @@ func resourceAlicloudAlidnsRecordCreate(d *schema.ResourceData, meta interface{}
 		request.UserClientIp = v.(string)
 	}
 	request.Value = d.Get("value").(string)
-	wait := incrementalWait(3*time.Second, 10*time.Second)
 	err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutCreate)), func() *resource.RetryError {
 		raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
 			return alidnsClient.AddDomainRecord(request)
 		})
 		if err != nil {
 			if IsExpectedErrors(err, []string{"InternalError", "LastOperationNotFinished"}) || NeedRetry(err) {
-				wait()
+				// Avoid thundering herd problem using random sleep
+				// Api server has operation lock by domain+rr
+				time.Sleep(time.Duration(rand.Int63n(time.Second.Nanoseconds())))
 				return resource.RetryableError(err)
 			}
 			return resource.NonRetryableError(err)
@@ -183,14 +185,14 @@ func resourceAlicloudAlidnsRecordUpdate(d *schema.ResourceData, meta interface{}
 	}
 	request.UserClientIp = d.Get("user_client_ip").(string)
 	if update {
-		wait := incrementalWait(3*time.Second, 3*time.Second)
 		err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutUpdate)), func() *resource.RetryError {
 			raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
 				return alidnsClient.SetDomainRecordStatus(request)
 			})
 			if err != nil {
 				if IsExpectedErrors(err, []string{"LastOperationNotFinished"}) || NeedRetry(err) {
-					wait()
+					// Avoid thundering herd problem using random sleep
+					time.Sleep(time.Duration(rand.Int63n(time.Second.Nanoseconds())))
 					return resource.RetryableError(err)
 				}
 				return resource.NonRetryableError(err)
@@ -215,14 +217,14 @@ func resourceAlicloudAlidnsRecordUpdate(d *schema.ResourceData, meta interface{}
 	updateDomainRecordRemarkReq.Remark = d.Get("remark").(string)
 	updateDomainRecordRemarkReq.UserClientIp = d.Get("user_client_ip").(string)
 	if update {
-		wait := incrementalWait(3*time.Second, 3*time.Second)
 		err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutUpdate)), func() *resource.RetryError {
 			raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
 				return alidnsClient.UpdateDomainRecordRemark(updateDomainRecordRemarkReq)
 			})
 			if err != nil {
 				if IsExpectedErrors(err, []string{"LastOperationNotFinished"}) || NeedRetry(err) {
-					wait()
+					// Avoid thundering herd problem using random sleep
+					time.Sleep(time.Duration(rand.Int63n(time.Second.Nanoseconds())))
 					return resource.RetryableError(err)
 				}
 				return resource.NonRetryableError(err)
@@ -268,14 +270,14 @@ func resourceAlicloudAlidnsRecordUpdate(d *schema.ResourceData, meta interface{}
 	updateDomainRecordReq.TTL = requests.NewInteger(d.Get("ttl").(int))
 	updateDomainRecordReq.UserClientIp = d.Get("user_client_ip").(string)
 	if update {
-		wait := incrementalWait(3*time.Second, 3*time.Second)
 		err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutUpdate)), func() *resource.RetryError {
 			raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
 				return alidnsClient.UpdateDomainRecord(updateDomainRecordReq)
 			})
 			if err != nil {
 				if IsExpectedErrors(err, []string{"LastOperationNotFinished"}) || NeedRetry(err) {
-					wait()
+					// Avoid thundering herd problem using random sleep
+					time.Sleep(time.Duration(rand.Int63n(time.Second.Nanoseconds())))
 					return resource.RetryableError(err)
 				}
 				return resource.NonRetryableError(err)
@@ -307,14 +309,14 @@ func resourceAlicloudAlidnsRecordDelete(d *schema.ResourceData, meta interface{}
 	if v, ok := d.GetOk("user_client_ip"); ok {
 		request.UserClientIp = v.(string)
 	}
-	wait := incrementalWait(3*time.Second, 10*time.Second)
 	err := resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutDelete)), func() *resource.RetryError {
 		raw, err := client.WithAlidnsClient(func(alidnsClient *alidns.Client) (interface{}, error) {
 			return alidnsClient.DeleteDomainRecord(request)
 		})
 		if err != nil {
 			if IsExpectedErrors(err, []string{"InternalError", "RecordForbidden.DNSChange", "LastOperationNotFinished"}) || NeedRetry(err) {
-				wait()
+				// Avoid thundering herd problem using random sleep
+				time.Sleep(time.Duration(rand.Int63n(time.Second.Nanoseconds())))
 				return resource.RetryableError(err)
 			}
 			return resource.NonRetryableError(err)
