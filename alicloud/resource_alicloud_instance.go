@@ -546,6 +546,10 @@ func resourceAliyunInstance() *schema.Resource {
 			},
 		},
 		CustomizeDiff: func(d *schema.ResourceDiff, meta interface{}) error {
+			oldSize, newSize := d.GetChange("system_disk_size")
+			if newSize.(int) < oldSize.(int) {
+				d.ForceNew("system_disk_size")
+			}
 			oldType, newType := d.GetChange("instance_type")
 			oldSpec := strings.Split(strings.TrimPrefix(oldType.(string), "ecs."), ".")[0]
 			newSpec := strings.Split(strings.TrimPrefix(newType.(string), "ecs."), ".")[0]
