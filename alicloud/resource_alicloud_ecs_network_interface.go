@@ -107,7 +107,7 @@ func resourceAlicloudEcsNetworkInterface() *schema.Resource {
 				ConflictsWith: []string{"secondary_private_ip_address_count", "private_ip_addresses", "private_ips"},
 			},
 			"security_group_ids": {
-				Type:     schema.TypeList,
+				Type:     schema.TypeSet,
 				Optional: true,
 				Computed: true,
 				Elem: &schema.Schema{
