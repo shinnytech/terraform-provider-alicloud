@@ -204,7 +204,7 @@ func resourceAlicloudEcsNetworkInterfaceCreate(d *schema.ResourceData, meta inte
 	}
 
 	if v, ok := d.GetOk("security_group_ids"); ok {
-		request["SecurityGroupIds"] = v
+		request["SecurityGroupIds"] = v.(*schema.Set).List()
 	} else if v, ok := d.GetOk("security_groups"); ok {
 		request["SecurityGroupIds"] = v
 	}
@@ -339,7 +339,7 @@ func resourceAlicloudEcsNetworkInterfaceUpdate(d *schema.ResourceData, meta inte
 	}
 	if d.HasChange("security_group_ids") {
 		update = true
-		request["SecurityGroupId"] = d.Get("security_group_ids")
+		request["SecurityGroupId"] = d.Get("security_group_ids").(*schema.Set).List()
 	}
 	if d.HasChange("security_groups") {
 		update = true
