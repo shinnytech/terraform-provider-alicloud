@@ -348,6 +348,10 @@ func resourceAlicloudDBInstance() *schema.Resource {
 				Optional:     true,
 				ValidateFunc: validation.IntInSlice([]int{30, 180, 365, 1095, 1825}),
 				Default:      30,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					// if sql_collector_status is disabled, it needs to be suppressed.
+					return d.Get("sql_collector_status").(string) == "Disabled"
+				},
 			},
 			"resource_group_id": {
 				Type:     schema.TypeString,
