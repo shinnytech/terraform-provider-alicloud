@@ -152,13 +152,12 @@ func resourceAliyunSlbListener() *schema.Resource {
 				Default:          0,
 				DiffSuppressFunc: tcpUdpDiffSuppressFunc,
 			},
-			//http & https
 			"health_check": {
-				Type:             schema.TypeString,
-				ValidateFunc:     validation.StringInSlice([]string{"on", "off"}, false),
-				Optional:         true,
-				Default:          OnFlag,
-				DiffSuppressFunc: httpHttpsDiffSuppressFunc,
+				Type:         schema.TypeString,
+				ValidateFunc: validation.StringInSlice([]string{"on", "off"}, false),
+				Optional:     true,
+				Default:      OnFlag,
+				ForceNew:     true,
 			},
 			//http & https
 			"health_check_method": {
@@ -878,6 +877,13 @@ func buildListenerCommonArgs(d *schema.ResourceData, meta interface{}) (*request
 
 	if v, ok := d.GetOkExists("proxy_protocol_v2_enabled"); ok && v.(bool) {
 		request.QueryParams["ProxyProtocolV2Enabled"] = convertBoolToString(v.(bool))
+	}
+
+	// modify health check switch for tcp and udp
+	// tcp and udp use HealthCheckSwitch flag
+	// https and https use HealthCheck flag which will be set in buildHttpListenerArgs
+	if protocol, ok := d.GetOk("protocol"); ok && protocol == "tcp" || protocol == "udp" {
+		request.QueryParams["HealthCheckSwitch"] = d.Get("health_check").(string)
 	}
 	return request, nil
 
