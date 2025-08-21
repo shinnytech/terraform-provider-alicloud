@@ -567,6 +567,22 @@ func resourceAlicloudDBInstance() *schema.Resource {
 				},
 			},
 		},
+		CustomizeDiff: func(d *schema.ResourceDiff, meta interface{}) error {
+			oldCategory, newCategory := d.GetChange("db_instance_storage_type")
+			if oldCategory != newCategory {
+				if strings.HasPrefix(oldCategory.(string), "cloud_essd") && oldCategory.(string) == "general_essd" {
+					// 高性能云盘不允许降级为 essd， ticket ID: 000B9JY7YC
+					d.ForceNew("db_instance_storage_type")
+				}
+				// ref: https://help.aliyun.com/zh/rds/apsaradb-rds-for-mysql/configuration-items-for-an-apsaradb-rds-for-mysql-instance
+				// pg 同 msql, ticket ID: 0005PJU4JW
+				if newCategory == "cloud_essd0" && oldCategory != "cloud_essd0" {
+					// 不支持 ESSD PL1 变更为 PL0, 目前只有基础系列倚天实例族有 PL0
+					d.ForceNew("db_instance_storage_type")
+				}
+			}
+			return nil
+		},
 	}
 }
 
@@ -1294,13 +1310,50 @@ func resourceAlicloudDBInstanceUpdate(d *schema.ResourceData, meta interface{}) 
 		}
 		d.SetPartial("resource_group_id")
 	}
+
+	// essd 升级为高性能云盘时需要保持其他参数不变
+	if d.HasChange("db_instance_storage_type") {
+		action := "ModifyDBInstanceSpec"
+		request := map[string]interface{}{
+			"RegionId":              client.RegionId,
+			"DBInstanceStorageType": d.Get("db_instance_storage_type"),
+		}
+		if _, err := stateConf.WaitForState(); err != nil {
+			return WrapErrorf(err, IdMsg, d.Id())
+		}
+		runtime := util.RuntimeOptions{}
+		err := resource.Retry(5*time.Minute, func() *resource.RetryError {
+			response, err := conn.DoRequest(StringPointer(action), nil, StringPointer("POST"), StringPointer("2014-08-15"), StringPointer("AK"), nil, request, &runtime)
+			if err != nil {
+				if IsExpectedErrors(err, []string{"InvalidOrderTask.NotSupport"}) || NeedRetry(err) {
+					return resource.RetryableError(err)
+				}
+				return resource.NonRetryableError(err)
+			}
+			addDebug(action, response, request)
+			d.SetPartial("db_instance_storage_type")
+			return nil
+		})
+
+		if err != nil {
+			return WrapErrorf(err, DefaultErrorMsg, d.Id(), action, AlibabaCloudSdkGoERROR)
+		}
+
+		// wait instance status is running after modifying
+		stateConf := BuildStateConf([]string{}, []string{"Running"}, d.Timeout(schema.TimeoutUpdate), 3*time.Minute, rdsService.RdsDBInstanceStateRefreshFunc(d.Id(), []string{"Deleting"}))
+		if _, err := stateConf.WaitForState(); err != nil {
+			return WrapErrorf(err, IdMsg, d.Id())
+		}
+	}
+
 	update := false
 	action := "ModifyDBInstanceSpec"
 	request := map[string]interface{}{
-		"RegionId":     client.RegionId,
-		"DBInstanceId": d.Id(),
-		"PayType":      d.Get("instance_charge_type"),
-		"SourceIp":     client.SourceIp,
+		"RegionId":              client.RegionId,
+		"DBInstanceId":          d.Id(),
+		"PayType":               d.Get("instance_charge_type"),
+		"SourceIp":              client.SourceIp,
+		"DBInstanceStorageType": d.Get("db_instance_storage_type"),
 	}
 	if d.HasChange("instance_type") {
 		update = true
@@ -1335,11 +1388,6 @@ func resourceAlicloudDBInstanceUpdate(d *schema.ResourceData, meta interface{}) 
 			request["ServerlessConfiguration"] = string(serverlessConfig)
 		}
 	}
-
-	if d.HasChange("db_instance_storage_type") {
-		update = true
-	}
-	request["DBInstanceStorageType"] = d.Get("db_instance_storage_type")
 
 	if update {
 		// wait instance status is running before modifying
