@@ -66,7 +66,8 @@ func (s *RdsService) DescribeDBInstance(id string) (map[string]interface{}, erro
 		return nil
 	})
 	if err != nil {
-		if IsExpectedErrors(err, []string{"InvalidDBInstanceId.NotFound"}) {
+		// ref: https://github.com/aliyun/terraform-provider-alicloud/commit/84791b7becda6f22955e16886b273410f256bb43
+		if IsExpectedErrors(err, []string{"InvalidDBInstanceId.NotFound", "InvalidDBInstanceName.NotFound"}) {
 			return nil, WrapErrorf(err, NotFoundMsg, AlibabaCloudSdkGoERROR)
 		}
 		return nil, WrapErrorf(err, DefaultErrorMsg, id, action, AlibabaCloudSdkGoERROR)
