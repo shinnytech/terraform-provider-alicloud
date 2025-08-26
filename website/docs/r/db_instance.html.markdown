@@ -490,6 +490,7 @@ The multiple zone ID can be retrieved by setting `multi` to "true" in the data s
   - MaintainTime: The change takes effect during the specified maintenance window. For more information, see ModifyDBInstanceMaintainTime.
 
 * `serverless_config` - (Optional, Available in 1.200.0+) The settings of the serverless instance. This parameter is required when you create a serverless instance. This parameter takes effect only when you create an ApsaraDB RDS for MySQL instance.
+* `backup_id` - (Optional, ForceNew) The backup id for creating a new instance.
 
 #### Block pg_hba_conf
 

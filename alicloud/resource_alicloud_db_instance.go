@@ -566,6 +566,11 @@ func resourceAlicloudDBInstance() *schema.Resource {
 					return false
 				},
 			},
+			"backup_id": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 		},
 	}
 }
@@ -1930,6 +1935,10 @@ func buildDBCreateRequest(d *schema.ResourceData, meta interface{}) (map[string]
 			}
 			request["ServerlessConfig"] = string(serverlessConfig)
 		}
+	}
+
+	if v, ok := d.GetOk("backup_id"); ok && v != "" {
+		request["UserBackupId"] = v
 	}
 
 	uuid, err := uuid.GenerateUUID()
