@@ -145,6 +145,35 @@ func (s *VpcService) DescribeVpc(id string) (object map[string]interface{}, err 
 	return object, nil
 }
 
+func (s *VpcService) DescribeVpcAttribute(id string) (object map[string]interface{}, err error) {
+	var response map[string]interface{}
+	conn, err := s.client.NewVpcClient()
+	if err != nil {
+		return nil, WrapError(err)
+	}
+	action := "DescribeVpcAttribute"
+	request := map[string]interface{}{
+		"RegionId": s.client.RegionId,
+		"VpcId":    id,
+	}
+	runtime := util.RuntimeOptions{}
+	runtime.SetAutoretry(true)
+	response, err = conn.DoRequest(StringPointer(action), nil, StringPointer("POST"), StringPointer("2016-04-28"), StringPointer("AK"), nil, request, &runtime)
+	if err != nil {
+		if IsExpectedErrors(err, []string{"Forbidden.VpcNotFound", "InvalidVpcID.NotFound", "InvalidVpcId.NotFound"}) {
+			err = WrapErrorf(Error(GetNotFoundMessage("Vpc", id)), NotFoundMsg, ProviderERROR)
+			return object, err
+		}
+		err = WrapErrorf(err, DefaultErrorMsg, id, action, AlibabaCloudSdkGoERROR)
+		return object, err
+	}
+	addDebug(action, response, request)
+	if response["VpcId"].(string) != id {
+		return object, WrapErrorf(Error(GetNotFoundMessage("VPC", id)), NotFoundWithResponse, response)
+	}
+	return response, nil
+}
+
 func (s *VpcService) DescribeVpcWithTeadsl(id string) (object map[string]interface{}, err error) {
 	conn, err := s.client.NewVpcClient()
 	if err != nil {

@@ -181,7 +181,7 @@ func resourceAlicloudVpcCreate(d *schema.ResourceData, meta interface{}) error {
 func resourceAlicloudVpcRead(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*connectivity.AliyunClient)
 	vpcService := VpcService{client}
-	object, err := vpcService.DescribeVpc(d.Id())
+	object, err := vpcService.DescribeVpcAttribute(d.Id())
 	if err != nil {
 		if NotFoundError(err) {
 			log.Printf("[DEBUG] Resource alicloud_vpc_vpc vpcService.DescribeVpc Failed!!! %s", err)
