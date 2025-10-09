@@ -113,6 +113,10 @@ func resourceAlicloudExpressConnectVirtualBorderRouter() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.IntBetween(0, 2999),
 			},
+			"vlan_interface_id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"route_table_id": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -229,9 +233,8 @@ func resourceAlicloudExpressConnectVirtualBorderRouterRead(d *schema.ResourceDat
 	d.Set("physical_connection_id", object["PhysicalConnectionId"])
 	d.Set("status", object["Status"])
 	d.Set("virtual_border_router_name", object["Name"])
-	if v, ok := object["VlanId"]; ok && fmt.Sprint(v) != "0" {
-		d.Set("vlan_id", formatInt(v))
-	}
+	d.Set("vlan_id", formatInt(object["VlanId"]))
+	d.Set("vlan_interface_id", object["VlanInterfaceId"])
 	d.Set("route_table_id", object["RouteTableId"])
 	d.Set("bandwidth", formatInt(object["Bandwidth"]))
 	return nil
