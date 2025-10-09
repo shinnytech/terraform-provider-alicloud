@@ -105,6 +105,10 @@ func resourceAlicloudExpressConnectRouterInterface() *schema.Resource {
 			"opposite_interface_id": {
 				Optional: true,
 				Type:     schema.TypeString,
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					v, ok := d.GetOk("fast_link")
+					return ok && v.(bool) && new == ""
+				},
 			},
 			"opposite_interface_owner_id": {
 				Optional: true,
@@ -194,8 +198,13 @@ func resourceAlicloudExpressConnectRouterInterface() *schema.Resource {
 			},
 			"spec": {
 				Required:     true,
-				ValidateFunc: validation.StringInSlice([]string{"Large.1", "Large.2", "Large.5", "Middle.1", "Middle.2", "Middle.5", "Mini.2", "Mini.5", "Small.1", "Small.2", "Small.5", "Negative"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"Xlarge.5120", "Large.1", "Large.2", "Large.5", "Middle.1", "Middle.2", "Middle.5", "Mini.2", "Mini.5", "Small.1", "Small.2", "Small.5", "Negative"}, false),
 				Type:         schema.TypeString,
+			},
+			"fast_link": {
+				Optional: true,
+				ForceNew: true,
+				Type:     schema.TypeBool,
 			},
 			"status": {
 				Optional:     true,
@@ -278,6 +287,9 @@ func resourceAlicloudExpressConnectRouterInterfaceCreate(d *schema.ResourceData,
 	if v, ok := d.GetOk("spec"); ok {
 		request["Spec"] = v
 	}
+	if v, ok := d.GetOk("fast_link"); ok {
+		request["FastLinkMode"] = v
+	}
 
 	var response map[string]interface{}
 	action := "CreateRouterInterface"
@@ -355,9 +367,11 @@ func resourceAlicloudExpressConnectRouterInterfaceRead(d *schema.ResourceData, m
 	d.Set("reservation_order_type", object["ReservationOrderType"])
 	d.Set("role", object["Role"])
 	d.Set("router_id", object["RouterId"])
+	d.Set("router_interface_id", object["RouterInterfaceId"])
 	d.Set("router_interface_name", object["Name"])
 	d.Set("router_type", object["RouterType"])
 	d.Set("spec", object["Spec"])
+	d.Set("fast_link", object["FastLinkMode"])
 	d.Set("status", object["Status"])
 	d.Set("vpc_instance_id", object["VpcInstanceId"])
 
@@ -611,6 +625,37 @@ func resourceAlicloudExpressConnectRouterInterfaceDelete(d *schema.ResourceData,
 			return nil
 		}
 		return WrapError(err)
+	} else if object["FastLinkMode"] == true {
+		request := map[string]interface{}{
+			"RouterInterfaceId": d.Id(),
+			"RegionId":          client.RegionId,
+			"Force":             true,
+		}
+
+		action := "DeleteExpressConnect"
+		runtime := util.RuntimeOptions{}
+		runtime.SetAutoretry(true)
+		wait := incrementalWait(3*time.Second, 3*time.Second)
+		err = resource.Retry(client.GetRetryTimeout(d.Timeout(schema.TimeoutDelete)), func() *resource.RetryError {
+			request["ClientToken"] = buildClientToken(action)
+			resp, err := conn.DoRequest(StringPointer(action), nil, StringPointer("POST"), StringPointer("2016-04-28"), StringPointer("AK"), nil, request, &runtime)
+			if err != nil {
+				if NeedRetry(err) {
+					wait()
+					return resource.RetryableError(err)
+				}
+				return resource.NonRetryableError(err)
+			}
+			addDebug(action, resp, request)
+			return nil
+		})
+		if err != nil {
+			if NotFoundError(err) {
+				return nil
+			}
+			return WrapErrorf(err, DefaultErrorMsg, d.Id(), action, AlibabaCloudSdkGoERROR)
+		}
+		return nil
 	} else if object["Status"] == string(Active) {
 		request := map[string]interface{}{
 			"RouterInterfaceId": d.Id(),
