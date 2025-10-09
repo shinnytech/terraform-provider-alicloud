@@ -52,6 +52,11 @@ func resourceAliyunRouteEntry() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(2, 128),
 			},
+			"description": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
 		},
 	}
 }
@@ -77,7 +82,14 @@ func resourceAliyunRouteEntryCreate(d *schema.ResourceData, meta interface{}) er
 	request.NextHopType = nt
 	request.NextHopId = ni
 	request.ClientToken = buildClientToken(request.GetActionName())
-	request.RouteEntryName = d.Get("name").(string)
+
+	if v, ok := d.GetOk("name"); ok {
+		request.RouteEntryName = v.(string)
+	}
+
+	if v, ok := d.GetOk("description"); ok {
+		request.Description = v.(string)
+	}
 
 	// retry 10 min to create lots of entries concurrently
 	err = resource.Retry(10*time.Minute, func() *resource.RetryError {
@@ -144,6 +156,7 @@ func resourceAliyunRouteEntryRead(d *schema.ResourceData, meta interface{}) erro
 	d.Set("nexthop_type", object.NextHopType)
 	d.Set("nexthop_id", object.InstanceId)
 	d.Set("name", object.RouteEntryName)
+	d.Set("description", object.Description)
 	return nil
 }
 
