@@ -4,7 +4,6 @@ package alicloud
 import (
 	"fmt"
 	"log"
-	"regexp"
 	"time"
 
 	util "github.com/alibabacloud-go/tea-utils/service"
@@ -35,14 +34,13 @@ func resourceAliCloudVpcPrefixList() *schema.Resource {
 			"entries": {
 				Type:          schema.TypeSet,
 				Optional:      true,
-				Computed:      true,
 				ConflictsWith: []string{"entrys"},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"description": {
 							Type:         schema.TypeString,
 							Optional:     true,
-							ValidateFunc: StringMatch(regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_.-]{2,256}$"), "The description of the cidr entry. It must be 2 to 256 characters in length and must start with a letter or Chinese, but cannot start with `http://` or `https://`."),
+							ValidateFunc: StringLenBetween(1, 128),
 						},
 						"cidr": {
 							Type:     schema.TypeString,
@@ -61,7 +59,6 @@ func resourceAliCloudVpcPrefixList() *schema.Resource {
 			"max_entries": {
 				Type:     schema.TypeInt,
 				Optional: true,
-				Computed: true,
 			},
 			"prefix_list_association": {
 				Type:     schema.TypeList,
@@ -106,7 +103,7 @@ func resourceAliCloudVpcPrefixList() *schema.Resource {
 			"prefix_list_description": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: StringMatch(regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_.-]{2,256}$"), "The description of the prefix list.It must be 2 to 256 characters in length and must start with a letter or Chinese, but cannot start with `http://` or `https://`."),
+				ValidateFunc: StringLenBetween(1, 256),
 			},
 			"prefix_list_id": {
 				Type:     schema.TypeString,
@@ -115,7 +112,7 @@ func resourceAliCloudVpcPrefixList() *schema.Resource {
 			"prefix_list_name": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: StringMatch(regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_.-]{2,128}$"), "The name of the prefix list. The name must be 2 to 128 characters in length, and must start with a letter. It can contain digits, periods (.), underscores (_), and hyphens (-)."),
+				ValidateFunc: StringLenBetween(1, 128),
 			},
 			"resource_group_id": {
 				Type:     schema.TypeString,
@@ -141,7 +138,7 @@ func resourceAliCloudVpcPrefixList() *schema.Resource {
 						"description": {
 							Type:         schema.TypeString,
 							Optional:     true,
-							ValidateFunc: StringMatch(regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_.-]{2,256}$"), "The description of the cidr entry. It must be 2 to 256 characters in length and must start with a letter or Chinese, but cannot start with `http://` or `https://`."),
+							ValidateFunc: StringLenBetween(1, 128),
 						},
 						"cidr": {
 							Type:     schema.TypeString,
