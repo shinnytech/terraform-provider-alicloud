@@ -762,7 +762,7 @@ func resourceAliyunSlbListenerUpdate(d *schema.ResourceData, meta interface{}) e
 				return slbClient.ProcessCommonRequest(request)
 			})
 			if err != nil {
-				if IsExpectedErrors(err, []string{"OperationFailed.ListenerStatusNotSupport"}) {
+				if IsExpectedErrors(err, []string{"OperationFailed.ListenerStatusNotSupport", "InternalError"}) {
 					return resource.RetryableError(err)
 				}
 				return resource.NonRetryableError(err)
