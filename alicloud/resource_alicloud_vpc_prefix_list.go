@@ -263,21 +263,17 @@ func resourceAlicloudVpcPrefixListRead(d *schema.ResourceData, meta interface{})
 	tagsMaps := objectRaw["Tags"]
 	d.Set("tags", tagsToMap(tagsMaps))
 
-	objectRaw, err = vpcServiceV2.DescribeGetVpcPrefixListEntries(d.Id())
+	var getVpcPrefixListEntriesObject []map[string]interface{}
+	getVpcPrefixListEntriesObject, err = vpcServiceV2.DescribeGetVpcPrefixListEntries(d.Id())
 	if err != nil {
 		return WrapError(err)
 	}
-
-	prefixListEntry1Raw := objectRaw["PrefixListEntry"]
 	entriesMaps := make([]map[string]interface{}, 0)
-	if prefixListEntry1Raw != nil {
-		for _, prefixListEntryChild1Raw := range prefixListEntry1Raw.([]interface{}) {
-			entriesMap := make(map[string]interface{})
-			prefixListEntryChild1Raw := prefixListEntryChild1Raw.(map[string]interface{})
-			entriesMap["cidr"] = prefixListEntryChild1Raw["Cidr"]
-			entriesMap["description"] = prefixListEntryChild1Raw["Description"]
-			entriesMaps = append(entriesMaps, entriesMap)
-		}
+	for _, prefixListEntryListItem := range getVpcPrefixListEntriesObject {
+		entriesMaps = append(entriesMaps, map[string]interface{}{
+			"cidr":        prefixListEntryListItem["Cidr"],
+			"description": prefixListEntryListItem["Description"],
+		})
 	}
 	d.Set("entries", entriesMaps)
 
