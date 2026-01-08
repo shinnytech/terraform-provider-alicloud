@@ -238,50 +238,56 @@ func (s *VpcServiceV2) DescribeVpcPrefixList(id string) (object map[string]inter
 
 	return v.([]interface{})[0].(map[string]interface{}), nil
 }
-func (s *VpcServiceV2) DescribeGetVpcPrefixListEntries(id string) (object map[string]interface{}, err error) {
-
-	client := s.client
-	var request map[string]interface{}
+func (s *VpcServiceV2) DescribeGetVpcPrefixListEntries(id string) (objects []map[string]interface{}, err error) {
 	var response map[string]interface{}
-	var query map[string]interface{}
+	conn, err := s.client.NewVpcClient()
+	if err != nil {
+		return nil, WrapError(err)
+	}
 	action := "GetVpcPrefixListEntries"
-	conn, err := client.NewVpcClient()
-	if err != nil {
-		return object, WrapError(err)
+	request := map[string]interface{}{
+		"RegionId":     s.client.RegionId,
+		"PrefixListId": id,
 	}
-	request = make(map[string]interface{})
-	query = make(map[string]interface{})
-
-	query["PrefixListId"] = id
-	request["RegionId"] = client.RegionId
-
-	wait := incrementalWait(3*time.Second, 5*time.Second)
-	err = resource.Retry(1*time.Minute, func() *resource.RetryError {
-		response, err = conn.DoRequest(StringPointer(action), nil, StringPointer("POST"), StringPointer("2016-04-28"), StringPointer("AK"), query, request, &util.RuntimeOptions{})
-
-		if err != nil {
-			if NeedRetry(err) {
-				wait()
-				return resource.RetryableError(err)
+	for {
+		runtime := util.RuntimeOptions{}
+		runtime.SetAutoretry(true)
+		wait := incrementalWait(3*time.Second, 3*time.Second)
+		err = resource.Retry(5*time.Minute, func() *resource.RetryError {
+			response, err = conn.DoRequest(StringPointer(action), nil, StringPointer("POST"), StringPointer("2016-04-28"), StringPointer("AK"), nil, request, &runtime)
+			if err != nil {
+				if NeedRetry(err) {
+					wait()
+					return resource.RetryableError(err)
+				}
+				return resource.NonRetryableError(err)
 			}
-			return resource.NonRetryableError(err)
-		}
+			return nil
+		})
 		addDebug(action, response, request)
-		return nil
-	})
-	if err != nil {
-		if IsExpectedErrors(err, []string{}) {
-			return object, WrapErrorf(Error(GetNotFoundMessage("PrefixList", id)), NotFoundMsg, ProviderERROR, fmt.Sprint(response["RequestId"]))
+		if err != nil {
+			return objects, WrapErrorf(err, DefaultErrorMsg, id, action, AlibabaCloudSdkGoERROR)
 		}
-		return object, WrapErrorf(err, DefaultErrorMsg, id, action, AlibabaCloudSdkGoERROR)
-	}
+		if formatInt(response["TotalCount"]) == 0 {
+			return objects, nil
+		}
+		resp, err := jsonpath.Get("$.PrefixListEntry", response)
+		if err != nil {
+			return objects, WrapErrorf(err, FailedGetAttributeMsg, id, "$", response)
+		}
+		result, _ := resp.([]interface{})
+		for _, v := range result {
+			item := v.(map[string]interface{})
+			objects = append(objects, item)
+		}
 
-	v, err := jsonpath.Get("$", response)
-	if err != nil {
-		return object, WrapErrorf(err, FailedGetAttributeMsg, id, "$", response)
+		if nextToken, ok := response["NextToken"].(string); ok && nextToken != "" {
+			request["NextToken"] = nextToken
+		} else {
+			break
+		}
 	}
-
-	return v.(map[string]interface{}), nil
+	return objects, nil
 }
 func (s *VpcServiceV2) DescribeGetVpcPrefixListAssociations(id string) (object map[string]interface{}, err error) {
 
