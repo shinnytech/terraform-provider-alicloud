@@ -132,6 +132,11 @@ func resourceAlicloudEcsDisk() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"encrypted"},
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					// 强制删除创建磁盘的快照后 read 时会返回空字符串
+					// 我们允许创建成功后删除快照，因此不应触发 diff
+					return new == ""
+				},
 			},
 			"status": {
 				Type:     schema.TypeString,
