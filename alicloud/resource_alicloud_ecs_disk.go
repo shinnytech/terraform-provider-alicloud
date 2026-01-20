@@ -130,7 +130,6 @@ func resourceAlicloudEcsDisk() *schema.Resource {
 			"snapshot_id": {
 				Type:          schema.TypeString,
 				Optional:      true,
-				ForceNew:      true,
 				ConflictsWith: []string{"encrypted"},
 			},
 			"status": {
@@ -179,6 +178,18 @@ func resourceAlicloudEcsDisk() *schema.Resource {
 					d.ForceNew("category")
 					d.ForceNew("performance_level")
 				}
+			}
+
+			// 阿里云客服反馈 snapshot_id 对应的的 api 返回值目前不可以依赖，因此移除read逻辑
+			// 创建磁盘成功后允许删除快照并移除移除此参数
+			// 用户第一次部署使用快照创建磁盘时，snapshot_id non-zero, 使用快照创建
+			// 用户第二次部署在配置文件中移除 snapshot_id 参数，此时不应发生磁盘销毁变更
+			// 用户第三次部署再次填写了 snapshot_id 参数(可能等于第一次部署的)，此时应该发生磁盘销毁变更
+			// 用户第一次部署没有指定snapshot_id参数，但第二次填写了 snapshot_id 参数，此时应该发生磁盘销毁变更
+			// 用户上次指定了snapshot_id参数，但第二次填写的 snapshot_id 参数变了，此时应该发生磁盘销毁变更
+			oldSnapshotId, newSnapshotId := d.GetChange("snapshot_id")
+			if oldSnapshotId != newSnapshotId && newSnapshotId != "" {
+				d.ForceNew("snapshot_id")
 			}
 			return nil
 		},
@@ -323,7 +334,6 @@ func resourceAlicloudEcsDiskRead(d *schema.ResourceData, meta interface{}) error
 	d.Set("performance_level", object["PerformanceLevel"])
 	d.Set("resource_group_id", object["ResourceGroupId"])
 	d.Set("size", formatInt(object["Size"]))
-	d.Set("snapshot_id", object["SourceSnapshotId"])
 	d.Set("status", object["Status"])
 	if v, ok := object["Tags"].(map[string]interface{}); ok {
 		d.Set("tags", tagsToMap(v["Tag"]))
