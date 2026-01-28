@@ -336,6 +336,18 @@ func resourceAlicloudDBInstance() *schema.Resource {
 				Optional:     true,
 				Computed:     true,
 				ValidateFunc: validation.StringInSlice([]string{"local_ssd", "cloud_ssd", "cloud_essd", "cloud_essd2", "cloud_essd3", "general_essd", "cloud_essd0"}, false),
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					// 原 cdk 中 pg 基础性倚天机型磁盘为 essd pl0
+					// 该磁盘类型在上海区已无存货且客服反馈无补货计划
+					// 但存量实例不应发生磁盘类型变更
+					slice := []string{"pg.n2e.1c.1m", "pg.n1e.2c.1m", "pg.n2e.2c.1m"}
+					for _, element := range slice {
+						if element == d.Get("instance_type").(string) && old == "cloud_essd0" {
+							return true
+						}
+					}
+					return false
+				},
 			},
 			"sql_collector_status": {
 				Type:         schema.TypeString,
