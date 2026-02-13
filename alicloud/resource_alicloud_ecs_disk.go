@@ -163,6 +163,10 @@ func resourceAlicloudEcsDisk() *schema.Resource {
 				Deprecated:    "Field 'availability_zone' has been deprecated from provider version 1.122.0. New field 'zone_id' instead",
 				ConflictsWith: []string{"zone_id"},
 			},
+			"serial": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 		CustomizeDiff: func(d *schema.ResourceDiff, meta interface{}) error {
 			oldSize, newSize := d.GetChange("size")
@@ -330,6 +334,7 @@ func resourceAlicloudEcsDiskRead(d *schema.ResourceData, meta interface{}) error
 	}
 	d.Set("zone_id", object["ZoneId"])
 	d.Set("availability_zone", object["ZoneId"])
+	d.Set("serial", object["SerialNumber"])
 	return nil
 }
 func resourceAlicloudEcsDiskUpdate(d *schema.ResourceData, meta interface{}) (errUpdate error) {
